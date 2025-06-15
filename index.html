@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>💬 Texty - The Futuristic Chat</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Ubuntu:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; } 
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: 'Ubuntu', sans-serif;
@@ -114,7 +114,7 @@
 <body>
   <header>
     <h1>💬 Texty - Ultra Chat</h1>
-    <div id="online">🟢 Online Users: <span id="users">Loading...</span></div>
+    <div id="online">🟢 Messages Updating Every 3s</div>
   </header>
 
   <div id="chat"></div>
@@ -125,13 +125,11 @@
   </div>
 
   <script>
-    const username = prompt("Enter your username 👤") || "Anonymous";
+    const username = prompt("Enter your name 👤") || "Anonymous";
     const chatBox = document.getElementById("chat");
     const input = document.getElementById("msg");
-    const usersList = document.getElementById("users");
 
-    // Replace this with your actual ngrok wss link
-    const ws = new WebSocket("wss://abc123.ngrok.io");
+    const API_BASE = "https://09e4-2401-4900-93d5-879e-5dab-235c-cd70-62fa.ngrok-free.app";
 
     function getTime() {
       const now = new Date();
@@ -146,36 +144,38 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: "join", name: username }));
-    };
+    async function sendMessage() {
+      const msg = input.value.trim();
+      if (msg === "") return;
 
-    ws.onmessage = (e) => {
-      const data = JSON.parse(e.data);
+      appendMessage(`${username}: ${msg}`, "you");
 
-      if (data.type === "chat") {
-        appendMessage(`${data.name}: ${data.text}`, data.name === username ? "you" : "other");
-      }
+      await fetch(`${API_BASE}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: username, message: msg })
+      });
 
-      if (data.type === "users") {
-        usersList.textContent = data.list.join(", ");
-      }
-    };
+      input.value = "";
+    }
+
+    async function loadMessages() {
+      const res = await fetch(`${API_BASE}/messages`);
+      const data = await res.json();
+
+      chatBox.innerHTML = "";
+      data.messages.forEach(m => {
+        const who = m.name === username ? "you" : "other";
+        appendMessage(`${m.name}: ${m.message}`, who);
+      });
+    }
 
     input.addEventListener("keypress", e => {
       if (e.key === "Enter") sendMessage();
     });
 
-    function sendMessage() {
-      const msg = input.value.trim();
-      if (msg !== "" && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "chat", name: username, text: msg }));
-        appendMessage(`${username}: ${msg}`, "you");
-        input.value = "";
-      } else if (ws.readyState !== WebSocket.OPEN) {
-        alert("Connection is not open. Please wait...");
-      }
-    }
+    setInterval(loadMessages, 3000);
+    loadMessages(); // Initial load
   </script>
 </body>
 </html>
